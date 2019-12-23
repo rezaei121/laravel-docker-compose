@@ -1,0 +1,66 @@
+version: '3'
+services:
+
+  es:
+    image: elasticsearch:7.5.0
+    container_name: es
+    environment:
+      - node.name=es
+      - discovery.type=single-node
+#      - network.publish_host=xxx.xxx.xxx.xxx
+#      - cluster.name=es-docker-cluster
+#      - discovery.seed_hosts=es
+#      - cluster.initial_master_nodes=es
+#      - bootstrap.memory_lock=true
+#      - "xpack.security.enabled=false"
+#      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./elastic_data:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+    networks:
+      - elastic
+
+  #PHP Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: digitalocean.com/php
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+
+  #Nginx Service
+  webserver:
+    image: nginx:alpine
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8080:80"
+      - "4043:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - app-network
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+  elastic:
+      driver: bridge
